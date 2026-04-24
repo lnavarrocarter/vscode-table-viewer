@@ -20,7 +20,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - name: Install dependencies
@@ -37,10 +37,10 @@ jobs:
         run: npm run compile
 
       - name: Package extension
-        run: npx vsce package --no-dependencies
+        run: ./node_modules/.bin/vsce package --no-dependencies
 
       - name: Publish to VS Code Marketplace
-        run: npx vsce publish --no-dependencies --pat ${{ secrets.VSCE_PAT }}
+        run: ./node_modules/.bin/vsce publish --no-dependencies --pat ${{ secrets.VSCE_PAT }}
 
       - name: Upload VSIX as release asset
         uses: softprops/action-gh-release@v2
