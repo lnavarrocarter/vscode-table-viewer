@@ -38,10 +38,9 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
   ): Promise<void> {
     console.log('resolveCustomEditor called');
     webviewPanel.webview.options = { enableScripts: true };
-    webviewPanel.webview.html = this._getHtml(webviewPanel.webview);
 
-    // Send data once the webview signals it's ready
-    webviewPanel.webview.onDidReceiveMessage(async (msg) => {
+    // Register the listener BEFORE setting html to avoid missing the 'ready' message
+    const messageListener = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
       console.log('Message received from webview:', msg);
       switch (msg.type) {
         case 'ready':
@@ -62,12 +61,23 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
           break;
         }
 
-        case 'save':
-          await this.saveCustomDocument(document, new vscode.CancellationTokenSource().token);
-          webviewPanel.webview.postMessage({ type: 'saved' });
+        case 'save': {
+          const cts = new vscode.CancellationTokenSource();
+          try {
+            await this.saveCustomDocument(document, cts.token);
+            webviewPanel.webview.postMessage({ type: 'saved' });
+          } finally {
+            cts.dispose();
+          }
           break;
+        }
       }
     });
+
+    // Dispose the listener when the panel closes to avoid memory leaks
+    webviewPanel.onDidDispose(() => messageListener.dispose());
+
+    webviewPanel.webview.html = this._getHtml(webviewPanel.webview);
   }
 
   async saveCustomDocument(document: TableDocument, _token: vscode.CancellationToken): Promise<void> {

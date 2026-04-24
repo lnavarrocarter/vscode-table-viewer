@@ -191,6 +191,8 @@
       if (e.key === 'Escape') { input.removeEventListener('blur', commit); cancel(); }
       if (e.key === 'Tab') {
         e.preventDefault();
+        // Remove blur listener first to prevent double-commit when focus leaves
+        input.removeEventListener('blur', commit);
         commit();
         // Move to next cell
         const row = td.parentElement;
