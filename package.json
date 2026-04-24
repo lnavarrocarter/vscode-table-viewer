@@ -1,0 +1,54 @@
+{
+  "name": "csv-xls-table-viewer",
+  "displayName": "CSV / XLS Table Viewer",
+  "description": "View and edit CSV, TSV, XLSX, XLS and ODS files as an interactive table inside VS Code",
+  "version": "0.1.0",
+  "publisher": "lnavarrocarter",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "keywords": ["csv", "xlsx", "xls", "tsv", "ods", "table", "spreadsheet"],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "customEditors": [
+      {
+        "viewType": "csvXlsTableViewer.tableEditor",
+        "displayName": "Table Viewer",
+        "selector": [
+          { "filenamePattern": "*.csv" },
+          { "filenamePattern": "*.tsv" },
+          { "filenamePattern": "*.xlsx" },
+          { "filenamePattern": "*.xls" },
+          { "filenamePattern": "*.ods" }
+        ],
+        "priority": "default"
+      }
+    ],
+    "commands": [
+      {
+        "command": "csvXlsTableViewer.openAsText",
+        "title": "Open as Plain Text",
+        "category": "Table Viewer"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package"
+  },
+  "dependencies": {
+    "papaparse": "^5.4.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/papaparse": "^5.3.14",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0",
+    "@vscode/vsce": "^2.24.0"
+  }
+}
