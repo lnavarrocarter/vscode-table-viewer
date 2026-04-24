@@ -14,7 +14,9 @@
   },
   "categories": ["Other"],
   "keywords": ["csv", "xlsx", "xls", "tsv", "ods", "table", "spreadsheet"],
-  "activationEvents": [],
+  "activationEvents": [
+    "onCustomEditor:csvXlsTableViewer.tableEditor"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "customEditors": [
