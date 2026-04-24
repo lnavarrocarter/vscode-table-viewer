@@ -37,7 +37,10 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
     webviewPanel: vscode.WebviewPanel
   ): Promise<void> {
     console.log('resolveCustomEditor called');
-    webviewPanel.webview.options = { enableScripts: true };
+    webviewPanel.webview.options = {
+      enableScripts: true,
+      localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'media')]
+    };
 
     // Register the listener BEFORE setting html to avoid missing the 'ready' message
     const messageListener = webviewPanel.webview.onDidReceiveMessage(async (msg) => {
