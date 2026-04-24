@@ -16,7 +16,7 @@ Visualiza y edita archivos **CSV, TSV, XLSX, XLS y ODS** como una tabla interact
 ### 1. Instalar dependencias
 
 ```bash
-cd C:\Users\lnava\.dev\vscode-csv-table-extension
+cd vscode-csv-table-extension
 npm install
 ```
 
