@@ -22,9 +22,13 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
   constructor(private readonly context: vscode.ExtensionContext) {}
 
   async openCustomDocument(uri: vscode.Uri): Promise<TableDocument> {
+    console.log('openCustomDocument called for:', uri.fsPath);
     const data = await vscode.workspace.fs.readFile(uri);
+    console.log('File read, size:', data.length);
     const ext = path.extname(uri.fsPath).toLowerCase().replace('.', '');
+    console.log('File extension:', ext);
     const tableData = await parseFile(Buffer.from(data), ext);
+    console.log('File parsed, rows:', tableData.rows.length, 'headers:', tableData.headers.length);
     return new TableDocument(uri, tableData);
   }
 
@@ -32,13 +36,16 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
     document: TableDocument,
     webviewPanel: vscode.WebviewPanel
   ): Promise<void> {
+    console.log('resolveCustomEditor called');
     webviewPanel.webview.options = { enableScripts: true };
     webviewPanel.webview.html = this._getHtml(webviewPanel.webview);
 
     // Send data once the webview signals it's ready
     webviewPanel.webview.onDidReceiveMessage(async (msg) => {
+      console.log('Message received from webview:', msg);
       switch (msg.type) {
         case 'ready':
+          console.log('Webview ready, sending table data:', document.tableData);
           webviewPanel.webview.postMessage({ type: 'load', data: document.tableData });
           break;
 

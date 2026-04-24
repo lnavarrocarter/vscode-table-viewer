@@ -1,6 +1,8 @@
 // @ts-check
 (function () {
+  console.log('Table.js loading...');
   const vscode = acquireVsCodeApi();
+  console.log('VS Code API acquired');
 
   /** @type {{ headers: string[], rows: string[][] } | null} */
   let tableData = null;
@@ -16,8 +18,10 @@
 
   // ── VS Code messaging ──────────────────────────────────────
   window.addEventListener('message', (event) => {
+    console.log('Message received:', event.data);
     const msg = event.data;
     if (msg.type === 'load') {
+      console.log('Loading table data:', msg.data);
       tableData = msg.data;
       sortCol = -1;
       sortDir = 'asc';
@@ -30,7 +34,9 @@
     }
   });
 
+  console.log('Sending ready message...');
   vscode.postMessage({ type: 'ready' });
+  console.log('Ready message sent');
 
   // ── Toolbar events ─────────────────────────────────────────
   filterInput.addEventListener('input', () => {
