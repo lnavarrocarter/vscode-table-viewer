@@ -5,7 +5,10 @@ src/**
 tsconfig.json
 **/*.map
 **/*.ts
-!out/**
-node_modules/**
 example/**
 .github/**
+tests/**
+dist/**
+*.vsix
+debug.sh
+test.csv

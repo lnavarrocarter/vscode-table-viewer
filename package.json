@@ -2,7 +2,7 @@
   "name": "csv-xls-table-viewer",
   "displayName": "CSV / XLS Table Viewer",
   "description": "View and edit CSV, TSV, XLSX, XLS and ODS files as an interactive table inside VS Code",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "publisher": "lnavarrocarter",
   "icon": "logo.png",
   "repository": {
@@ -12,8 +12,18 @@
   "engines": {
     "vscode": "^1.85.0"
   },
-  "categories": ["Other"],
-  "keywords": ["csv", "xlsx", "xls", "tsv", "ods", "table", "spreadsheet"],
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "csv",
+    "xlsx",
+    "xls",
+    "tsv",
+    "ods",
+    "table",
+    "spreadsheet"
+  ],
   "activationEvents": [
     "onCustomEditor:csvXlsTableViewer.tableEditor"
   ],
@@ -24,11 +34,21 @@
         "viewType": "csvXlsTableViewer.tableEditor",
         "displayName": "Table Viewer",
         "selector": [
-          { "filenamePattern": "*.csv" },
-          { "filenamePattern": "*.tsv" },
-          { "filenamePattern": "*.xlsx" },
-          { "filenamePattern": "*.xls" },
-          { "filenamePattern": "*.ods" }
+          {
+            "filenamePattern": "*.csv"
+          },
+          {
+            "filenamePattern": "*.tsv"
+          },
+          {
+            "filenamePattern": "*.xlsx"
+          },
+          {
+            "filenamePattern": "*.xls"
+          },
+          {
+            "filenamePattern": "*.ods"
+          }
         ],
         "priority": "default"
       }
@@ -45,7 +65,9 @@
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "package": "vsce package"
+    "package": "vsce package",
+    "test": "npm run package -- --out table-viewer.vsix && npm run test:package",
+    "test:package": "node --test tests/package.test.cjs"
   },
   "dependencies": {
     "papaparse": "^5.4.1",

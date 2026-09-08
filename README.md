@@ -76,13 +76,13 @@ Abre el directorio en VS Code y presiona **F5**. Se abre una ventana de VS Code 
 
 ```bash
 npm run package
-# Genera: csv-xls-table-viewer-0.1.0.vsix
+# Genera: csv-xls-table-viewer-<version>.vsix
 ```
 
 Instala el `.vsix` con:
 
 ```bash
-code --install-extension csv-xls-table-viewer-0.1.0.vsix
+code --install-extension csv-xls-table-viewer-<version>.vsix
 ```
 
 ## Estructura del proyecto
@@ -117,3 +117,29 @@ vscode-csv-table-extension/
 | Navegar celdas | `Tab` mientras editas |
 | Guardar | Botón `💾 Save` o `Ctrl+S` |
 | Ver como texto | Clic derecho → *Open With* → *Text Editor* |
+
+## Verificación del paquete antes de publicar
+
+```bash
+npm ci
+npm test
+```
+
+`npm test` compila, genera `table-viewer.vsix` y lo extrae en un directorio
+temporal fuera del repositorio. Comprueba los recursos, activa la extensión con
+una API de VS Code simulada y prueba lectura/escritura de CSV, TSV, XLSX, XLS y ODS
+usando exclusivamente las dependencias incluidas en el paquete. Requiere Node.js
+20 o superior y `unzip` (disponible en macOS y en el runner Ubuntu de CI).
+
+La compilación TypeScript conserva los imports de `papaparse` y `xlsx`: deben
+incluirse sus dependencias de producción. No excluir `node_modules/**` ni usar
+`--no-dependencies` sin introducir primero un bundler.
+
+Para verificar también la interfaz real, instala `table-viewer.vsix` mediante
+**Extensions → Install from VSIX**, abre un archivo de cada formato, edita una
+celda, guarda y vuelve a abrir el archivo. La prueba automática no ejecuta la
+interfaz ni un Extension Host real.
+
+El workflow de release verifica que el tag coincida con `package.json`, ejecuta
+estas pruebas y publica el mismo VSIX validado. Antes de crear un nuevo tag,
+actualiza la versión en `package.json` y `package-lock.json` con `npm version`.
