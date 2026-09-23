@@ -1,145 +1,74 @@
-# CSV / XLS Table Viewer — VS Code Extension
+<div align="center">
+  <img src="logo.png" alt="Table Viewer logo" width="112" />
+  <h1>CSV / XLS Table Viewer</h1>
+  <p><strong>Your data. A clearer view. Inside VS Code.</strong></p>
+  <p>Explore, filter, and edit tabular files without leaving your editor.</p>
+  <p><strong>English</strong> · <a href="README.es.md">Español</a></p>
+  <p><a href="#get-started">Get started</a> · <a href="docs/DEVELOPMENT.md">Development</a> · <a href="https://github.com/lnavarrocarter/vscode-table-viewer/issues">Report an issue</a></p>
+</div>
 
-Visualiza y edita archivos **CSV, TSV, XLSX, XLS y ODS** como una tabla interactiva dentro de VS Code.
+---
 
-## Características
+## A table where you need it
 
-- 📊 Tabla con scroll horizontal y vertical
-- 🔃 Ordenar por cualquier columna (click en el header)
-- 🔍 Filtrar filas con búsqueda global
-- ✏️ Editar celdas con doble click
-- 💾 Guardar cambios al archivo original
-- ↩️ Soporte para Undo/Redo nativo de VS Code
+Turn CSV, TSV, XLSX, XLS, and ODS files into an interactive table. Inspect an export, find a record, or make a quick cell edit in your existing VS Code workspace.
 
-## Setup e instalación
+- **Find what matters.** Search across all cells with a global, case-insensitive filter.
+- **Explore by column.** Click a header to sort; click again to reverse the order.
+- **Edit in place.** Double-click a cell, update its value, and save to the original file.
+- **Stay in your editor.** Theme-aware styling, sticky column headers, row numbers, and horizontal and vertical scrolling.
+- **Keep your delimiter.** CSV delimiters are detected automatically and retained when saving; TSV uses tabs.
 
-### 1. Instalar dependencias
+## Get started
 
-```bash
-cd vscode-csv-table-extension
-npm install
-```
+Requires **VS Code 1.85 or later**.
 
-### 2. Crear directorio `.vscode` y archivos de debug
+1. In VS Code, open **Extensions** and search for `CSV / XLS Table Viewer` by `lnavarrocarter`.
+2. Install the extension and open a supported file.
+3. If it opens as text, right-click its editor tab and choose **Reopen Editor With… → Table Viewer**.
+4. Double-click a cell to edit, then use **Save changes** or **Ctrl+S** / **Cmd+S**.
 
-```bash
-mkdir .vscode
-```
+You can also install a `.vsix` from [GitHub Releases](https://github.com/lnavarrocarter/vscode-table-viewer/releases) using **Extensions → … → Install from VSIX…**. To build a package locally, see the [development guide](docs/DEVELOPMENT.md).
 
-Luego crea `.vscode/launch.json`:
+## Supported formats
 
-```json
-{
-  "version": "0.2.0",
-  "configurations": [
-    {
-      "name": "Run Extension",
-      "type": "extensionHost",
-      "request": "launch",
-      "args": ["--extensionDevelopmentPath=${workspaceFolder}"],
-      "outFiles": ["${workspaceFolder}/out/**/*.js"],
-      "preLaunchTask": "${defaultBuildTask}"
-    }
-  ]
-}
-```
+| Format | Reading and saving |
+| --- | --- |
+| CSV | UTF-8 text; automatic delimiter detection, retained on save |
+| TSV | UTF-8 text with tab separators |
+| XLSX | First worksheet, displayed as text values |
+| XLS | First worksheet, displayed as text values |
+| ODS | First worksheet, displayed as text values |
 
-Y `.vscode/tasks.json`:
+The first row becomes the column headers. Empty headers receive names such as `Col1`; blank CSV/TSV lines are skipped.
 
-```json
-{
-  "version": "2.0.0",
-  "tasks": [
-    {
-      "type": "npm",
-      "script": "watch",
-      "problemMatcher": "$tsc-watch",
-      "isBackground": true,
-      "presentation": { "reveal": "never" },
-      "group": { "kind": "build", "isDefault": true }
-    }
-  ]
-}
-```
+**Workbook saving:** XLSX, XLS, and ODS files are rebuilt as a single worksheet named `Sheet1`, containing text values. Other worksheets, formulas, formatting, and original cell types are not preserved. Work on a copy when you need to keep those features.
 
-### 3. Compilar TypeScript
+## Everyday controls
 
-```bash
-npm run compile
-```
+| Action | Control |
+| --- | --- |
+| Sort a column | Click its header; click again to reverse |
+| Filter rows | Type in **Filter rows** |
+| Edit a cell | Double-click the cell |
+| Confirm an edit | Press **Enter** or click outside |
+| Cancel an edit | Press **Escape** |
+| Edit the next cell in the same row | Press **Tab** while editing |
+| Save | **Save changes**, **Ctrl+S** (Windows/Linux), or **Cmd+S** (macOS) |
+| Open as text | Right-click the tab → **Reopen Editor With… → Text Editor** |
 
-### 4. Probar en modo desarrollo
+Sorting and filtering affect the view only; they do not reorder or remove saved rows. Search matches cell values, not column headers.
 
-Abre el directorio en VS Code y presiona **F5**. Se abre una ventana de VS Code en modo Extension Development Host. Abre cualquier archivo `.csv`, `.tsv`, `.xlsx`, `.xls` o `.ods` y se mostrará la tabla.
+## Current scope
 
-### 5. Empaquetar la extensión (opcional)
+Table Viewer focuses on inspecting data and editing existing cells. It does not provide worksheet selection, formula calculation, header editing, or row/column insertion. All rows render at once, so very large files may be slow. Undo/redo and revert update the document model, but the current table view does not refresh automatically for those operations.
 
-```bash
-npm run package
-# Genera: csv-xls-table-viewer-<version>.vsix
-```
+## Documentation and support
 
-Instala el `.vsix` con:
+- [Development, packaging, and release guide](docs/DEVELOPMENT.md)
+- [Documentación en español](README.es.md)
+- [Issues and feature requests](https://github.com/lnavarrocarter/vscode-table-viewer/issues) — include your VS Code version, file format, reproduction steps, and a small anonymized sample.
 
-```bash
-code --install-extension csv-xls-table-viewer-<version>.vsix
-```
+## Author and license
 
-## Estructura del proyecto
-
-```
-vscode-csv-table-extension/
-├── src/
-│   ├── extension.ts              # Entry point
-│   ├── tableEditorProvider.ts    # Custom Editor Provider
-│   └── parsers/
-│       └── fileParser.ts         # Parsers CSV/TSV/XLSX/ODS
-├── media/
-│   ├── table.css                 # Estilos de la tabla (tema VS Code)
-│   └── table.js                  # UI interactiva (sort, filter, edit)
-├── .vscode/
-│   ├── launch.json               # Configuración de debug F5
-│   └── tasks.json                # Build task
-├── package.json
-└── tsconfig.json
-```
-
-## Uso
-
-| Acción | Cómo |
-|--------|------|
-| Ordenar columna | Click en el header de la columna |
-| Invertir orden | Click de nuevo en el mismo header |
-| Filtrar filas | Escribe en el campo de búsqueda |
-| Editar celda | Doble click en la celda |
-| Confirmar edición | `Enter` o click fuera |
-| Cancelar edición | `Escape` |
-| Navegar celdas | `Tab` mientras editas |
-| Guardar | Botón `💾 Save` o `Ctrl+S` |
-| Ver como texto | Clic derecho → *Open With* → *Text Editor* |
-
-## Verificación del paquete antes de publicar
-
-```bash
-npm ci
-npm test
-```
-
-`npm test` compila, genera `table-viewer.vsix` y lo extrae en un directorio
-temporal fuera del repositorio. Comprueba los recursos, activa la extensión con
-una API de VS Code simulada y prueba lectura/escritura de CSV, TSV, XLSX, XLS y ODS
-usando exclusivamente las dependencias incluidas en el paquete. Requiere Node.js
-20 o superior y `unzip` (disponible en macOS y en el runner Ubuntu de CI).
-
-La compilación TypeScript conserva los imports de `papaparse` y `xlsx`: deben
-incluirse sus dependencias de producción. No excluir `node_modules/**` ni usar
-`--no-dependencies` sin introducir primero un bundler.
-
-Para verificar también la interfaz real, instala `table-viewer.vsix` mediante
-**Extensions → Install from VSIX**, abre un archivo de cada formato, edita una
-celda, guarda y vuelve a abrir el archivo. La prueba automática no ejecuta la
-interfaz ni un Extension Host real.
-
-El workflow de release verifica que el tag coincida con `package.json`, ejecuta
-estas pruebas y publica el mismo VSIX validado. Antes de crear un nuevo tag,
-actualiza la versión en `package.json` y `package-lock.json` con `npm version`.
+Created by [lnavarrocarter](https://github.com/lnavarrocarter). Released under the [MIT License](LICENSE).

@@ -81,8 +81,8 @@
     const total = tableData.rows.length;
     const shown = filteredRows.length;
     rowCountEl.textContent = shown < total
-      ? `${shown} / ${total} rows`
-      : `${total} rows`;
+      ? `${shown} of ${total} rows · ${tableData.headers.length} columns`
+      : `${total} rows · ${tableData.headers.length} columns`;
   }
 
   // ── Render ─────────────────────────────────────────────────
@@ -90,6 +90,20 @@
     if (!tableData) return;
 
     container.innerHTML = '';
+    if (!tableData.headers.length || !filteredRows.length) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.setAttribute('role', 'status');
+      const heading = document.createElement('h2');
+      heading.textContent = filterText ? 'No matching rows' : 'No data rows yet';
+      const hint = document.createElement('p');
+      hint.textContent = filterText
+        ? 'Try a different search or clear the filter to see all rows.'
+        : 'Open a file with a header row and data to start exploring.';
+      empty.append(heading, hint);
+      container.appendChild(empty);
+      if (!tableData.headers.length) return;
+    }
     const table = document.createElement('table');
 
     // thead
@@ -206,10 +220,10 @@
   }
 
   function flashSaved() {
-    saveBtn.textContent = '✅ Saved';
+    saveBtn.textContent = 'Saved';
     saveBtn.classList.add('saved');
     setTimeout(() => {
-      saveBtn.textContent = '💾 Save';
+      saveBtn.textContent = 'Save changes';
       saveBtn.classList.remove('saved');
     }, 1500);
   }

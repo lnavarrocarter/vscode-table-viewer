@@ -79,5 +79,9 @@
     "@types/vscode": "^1.85.0",
     "typescript": "^5.3.0",
     "@vscode/vsce": "^2.24.0"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/lnavarrocarter/vscode-table-viewer/issues"
   }
 }

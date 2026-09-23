@@ -171,3 +171,61 @@ td.editing input {
   outline: none;
   box-sizing: border-box;
 }
+
+/* Product chrome keeps the user's VS Code theme as the source of color. */
+#product-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px 16px;
+  flex-shrink: 0;
+}
+
+.product-identity { display: flex; align-items: center; gap: 12px; }
+.product-mark {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--vscode-panel-border, #3c3c3c);
+  border-radius: 10px;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  font-size: 28px;
+}
+
+h1 { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; }
+.product-identity p { margin-top: 4px; color: var(--vscode-descriptionForeground, #a0a0a0); font-size: 12px; }
+.format-label { color: var(--vscode-descriptionForeground, #a0a0a0); font-size: 11px; white-space: nowrap; }
+
+#toolbar { padding: 12px 24px; gap: 14px; flex-wrap: wrap; }
+#filter-input { min-width: 140px; max-width: 420px; padding: 8px 12px; border-radius: 6px; font-family: inherit; }
+#save-btn { margin-left: auto; padding: 8px 14px; border-radius: 6px; font-family: inherit; font-weight: 600; }
+#save-btn:focus-visible { outline: 2px solid var(--vscode-focusBorder, #007acc); outline-offset: 3px; }
+#save-btn.saved { background: var(--vscode-button-background, #0e639c); }
+#table-container { min-height: 0; }
+th { padding: 10px 14px; }
+td { padding: 7px 14px; }
+td.editing input { padding: 5px 12px; }
+#loading, .empty-state { padding: 40px 24px; }
+.empty-state h2 { font-size: 16px; font-weight: 600; }
+.empty-state p { margin-top: 8px; line-height: 1.6; color: var(--vscode-descriptionForeground, #a0a0a0); }
+#editor-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 24px;
+  border-top: 1px solid var(--vscode-panel-border, #3c3c3c);
+  color: var(--vscode-descriptionForeground, #a0a0a0);
+  font-size: 11px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+
+@media (max-width: 560px) {
+  #product-header { padding: 16px; }
+  .format-label, #editor-footer > span:last-child { display: none; }
+  #toolbar { padding: 12px 16px; gap: 10px; }
+  #filter-input { flex-basis: 100%; max-width: none; }
+  #editor-footer { padding: 10px 16px; }
+}

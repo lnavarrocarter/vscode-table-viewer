@@ -126,14 +126,19 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
   <title>Table Viewer</title>
 </head>
 <body>
+  <header id="product-header">
+    <div class="product-identity"><span class="product-mark" aria-hidden="true">▦</span><div><h1>Table Viewer</h1><p>A clearer view of your data.</p></div></div>
+    <span class="format-label">CSV · TSV · XLSX · XLS · ODS</span>
+  </header>
   <div id="toolbar">
-    <input id="filter-input" type="text" placeholder="🔍 Filter rows..." autocomplete="off" />
-    <span id="row-count"></span>
-    <button id="save-btn">💾 Save</button>
+    <input id="filter-input" type="search" aria-label="Filter rows" placeholder="Filter rows…" autocomplete="off" />
+    <span id="row-count" role="status" aria-live="polite"></span>
+    <button id="save-btn" type="button">Save changes</button>
   </div>
-  <div id="table-container">
-    <div id="loading">Loading…</div>
-  </div>
+  <main id="table-container" aria-label="Table data">
+    <div id="loading" role="status">Loading your table…</div>
+  </main>
+  <footer id="editor-footer"><span>Double-click to edit · Enter to apply · Escape to cancel</span><span>Table Viewer</span></footer>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
