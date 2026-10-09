@@ -32,7 +32,20 @@ jobs:
       - name: Build and test packaged extension
         run: npm test
 
+      - name: Check Marketplace publishing credential
+        id: marketplace
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: |
+          if [[ -n "$VSCE_PAT" ]]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::VSCE_PAT is not configured; Marketplace publishing will be skipped."
+          fi
+
       - name: Publish tested VSIX to VS Code Marketplace
+        if: steps.marketplace.outputs.available == 'true'
         run: ./node_modules/.bin/vsce publish --packagePath table-viewer.vsix
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
