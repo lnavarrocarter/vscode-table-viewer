@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 export interface TableData {
   headers: string[];
   rows: string[][];
+  readOnly?: boolean;
   /** Original delimiter detected when parsing (preserved on save) */
   delimiter?: string;
 }
@@ -14,6 +15,28 @@ export async function parseFile(buffer: Buffer, ext: string): Promise<TableData>
       return parseCsv(buffer.toString('utf8'));
     case 'tsv':
       return parseCsv(buffer.toString('utf8'), '\t');
+    case 'txt':
+      return parseCsv(buffer.toString('utf8'), '\t');
+    case 'dbf': {
+      if (buffer.length < 32) throw new Error('Invalid DBF header.');
+      if (![0x03, 0x04, 0x05, 0x30, 0x31, 0x32, 0x43, 0x63, 0x83, 0x8b, 0xcb, 0xf5].includes(buffer[0])) {
+        throw new Error('Unsupported DBF variant. Expected a dBASE III/IV or Visual FoxPro table.');
+      }
+      const headerLength = buffer.readUInt16LE(8);
+      if (headerLength < 33 || headerLength > buffer.length) throw new Error('Invalid DBF header length.');
+      const recordLength = buffer.readUInt16LE(10);
+      const recordCount = buffer.readUInt32LE(4);
+      if (!recordLength || recordCount > Math.floor((buffer.length - headerLength) / recordLength)) {
+        throw new Error('Invalid or truncated DBF records.');
+      }
+      for (let offset = 32; offset + 32 <= headerLength && buffer[offset] !== 0x0d; offset += 32) {
+        const fieldType = String.fromCharCode(buffer[offset + 11]);
+        if (['M', 'G', 'P', 'W'].includes(fieldType)) {
+          throw new Error('DBF memo fields are not supported yet. Import a CSV export from FoxPro including the memo contents instead.');
+        }
+      }
+      return { ...parseXlsx(buffer), readOnly: true };
+    }
     case 'xlsx':
     case 'xls':
     case 'ods':
@@ -73,10 +96,13 @@ function parseXlsx(buffer: Buffer): TableData {
 }
 
 export async function serializeFile(data: TableData, ext: string): Promise<Uint8Array> {
+  if (ext === 'dbf') throw new Error('DBF files are read-only. Export to CSV, TSV or XLSX instead.');
   switch (ext) {
     case 'csv':
       return serializeCsv(data, data.delimiter ?? ',');
     case 'tsv':
+      return serializeCsv(data, '\t');
+    case 'txt':
       return serializeCsv(data, '\t');
     case 'xlsx':
     case 'xls':

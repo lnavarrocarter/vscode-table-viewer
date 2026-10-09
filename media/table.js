@@ -23,6 +23,8 @@
     if (msg.type === 'load') {
       console.log('Loading table data:', msg.data);
       tableData = msg.data;
+      saveBtn.disabled = !!tableData.readOnly;
+      saveBtn.title = tableData.readOnly ? 'Read-only DBF. Use Save As to export.' : '';
       sortCol = -1;
       sortDir = 'asc';
       filterText = '';
@@ -163,6 +165,7 @@
 
   // ── Inline cell editing ────────────────────────────────────
   function startEdit(td, rowIdx, colIdx) {
+    if (tableData.readOnly) return;
     if (td.classList.contains('editing')) return;
     const oldValue = tableData.rows[rowIdx][colIdx];
 

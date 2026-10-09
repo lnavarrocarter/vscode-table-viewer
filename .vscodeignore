@@ -8,6 +8,9 @@ tsconfig.json
 example/**
 .github/**
 tests/**
+scripts/**
+media/spreadsheet.js
+media/spreadsheet.css
 dist/**
 *.vsix
 debug.sh
@@ -16,3 +19,7 @@ debug.sh
 *.xlsx
 *.xls
 *.ods
+*.dbf
+*.fpt
+*.dbt
+*.sheet.json

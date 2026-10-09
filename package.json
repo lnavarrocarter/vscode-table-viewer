@@ -2,7 +2,7 @@
   "name": "csv-xls-table-viewer",
   "displayName": "CSV / XLS Table Viewer",
   "description": "View and edit CSV, TSV, XLSX, XLS and ODS files as an interactive table inside VS Code",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "publisher": "lnavarrocarter",
   "icon": "logo.png",
   "repository": {
@@ -25,7 +25,8 @@
     "spreadsheet"
   ],
   "activationEvents": [
-    "onCustomEditor:csvXlsTableViewer.tableEditor"
+    "onCustomEditor:csvXlsTableViewer.tableEditor",
+    "onCustomEditor:csvXlsTableViewer.spreadsheetEditor"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -48,6 +49,19 @@
           },
           {
             "filenamePattern": "*.ods"
+          },
+          {
+            "filenamePattern": "*.dbf"
+          }
+        ],
+        "priority": "default"
+      },
+      {
+        "viewType": "csvXlsTableViewer.spreadsheetEditor",
+        "displayName": "Spreadsheet (Experimental)",
+        "selector": [
+          {
+            "filenamePattern": "*.sheet.json"
           }
         ],
         "priority": "default"
@@ -58,27 +72,43 @@
         "command": "csvXlsTableViewer.openAsText",
         "title": "Open as Plain Text",
         "category": "Table Viewer"
+      },
+      {
+        "command": "csvXlsTableViewer.importSpreadsheet",
+        "title": "Import into Spreadsheet (Experimental)",
+        "category": "Table Viewer"
       }
     ]
   },
   "scripts": {
     "vscode:prepublish": "npm run compile",
-    "compile": "tsc -p ./",
+    "compile": "tsc -p ./ && npm run build:webview",
+    "build:webview": "node scripts/build-webview.cjs",
+    "watch:webview": "npm run build:webview -- --watch",
+    "test:spreadsheet": "npm run compile && node --test tests/spreadsheet.test.cjs",
+    "test:extension-host": "npm run compile && node tests/extension-host.test.cjs",
+    "preview:spreadsheet": "node tests/spreadsheet.test.cjs --preview",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",
-    "test": "npm run package -- --out table-viewer.vsix && npm run test:package",
+    "test": "npm run package -- --out table-viewer.vsix && node --test tests/spreadsheet.test.cjs && npm run test:package",
     "test:package": "node --test tests/package.test.cjs"
   },
   "dependencies": {
+    "lodash": "4.18.1",
     "papaparse": "^5.4.1",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
+    "@types/lodash": "4.17.25",
     "@types/node": "^20.0.0",
     "@types/papaparse": "^5.3.14",
     "@types/vscode": "^1.85.0",
-    "typescript": "^5.3.0",
-    "@vscode/vsce": "^2.24.0"
+    "@univerjs/preset-sheets-core": "1.0.3",
+    "@univerjs/presets": "1.0.3",
+    "@vscode/vsce": "^2.24.0",
+    "esbuild": "0.28.2",
+    "lucide": "1.54.0",
+    "typescript": "^5.3.0"
   },
   "license": "MIT",
   "bugs": {
