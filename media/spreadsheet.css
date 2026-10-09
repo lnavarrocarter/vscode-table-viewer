@@ -1,0 +1,21 @@
+html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+body { display: flex; flex-direction: column; background: var(--vscode-editor-background, #fff); color: var(--vscode-editor-foreground, #202020); font-family: var(--vscode-font-family, sans-serif); }
+#spreadsheet-toolbar { display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 0 12px; border-bottom: 1px solid var(--vscode-panel-border, #ddd); flex-wrap: wrap; }
+#document-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; }
+#status { margin-left: auto; font-size: 11px; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#spreadsheet-toolbar button { display: grid; place-items: center; flex: 0 0 30px; width: 30px; height: 30px; padding: 0; border: 1px solid var(--vscode-panel-border, #ddd); border-radius: 4px; background: transparent; color: inherit; cursor: pointer; }
+#spreadsheet-toolbar button:hover { background: var(--vscode-toolbar-hoverBackground, #eee); }
+#spreadsheet-toolbar button:focus-visible { outline: 2px solid var(--vscode-focusBorder, #007acc); }
+#spreadsheet { flex: 1; min-height: 0; min-width: 0; position: relative; }
+#spreadsheet-toolbar button:disabled { opacity: 0.4; cursor: default; }
+#pivot-dialog { width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 20px; box-sizing: border-box; border: 1px solid var(--vscode-panel-border, #ddd); border-radius: 6px; background: var(--vscode-editor-background, #fff); color: inherit; }
+#pivot-dialog::backdrop { background: rgb(0 0 0 / 35%); }
+#pivot-form { display: grid; grid-template-columns: 1fr; gap: 8px; }
+#pivot-title { margin: 0 0 8px; font-size: 16px; }
+#pivot-form label { font-size: 12px; }
+#pivot-form input, #pivot-form select { width: 100%; min-width: 0; min-height: 32px; box-sizing: border-box; padding: 5px 8px; border: 1px solid var(--vscode-input-border, #ccc); border-radius: 3px; color: var(--vscode-input-foreground, #222); background: var(--vscode-input-background, #fff); font: inherit; }
+#pivot-error { margin: 0; color: var(--vscode-errorForeground, #b42318); font-size: 12px; overflow-wrap: anywhere; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.dialog-actions button { min-height: 32px; padding: 5px 12px; border: 1px solid var(--vscode-button-border, #ccc); border-radius: 3px; background: var(--vscode-button-background, #167145); color: var(--vscode-button-foreground, #fff); cursor: pointer; font: inherit; }
+.dialog-actions button:disabled { opacity: 0.4; cursor: default; }
+@media (max-width: 480px) { #spreadsheet-toolbar { gap: 6px; padding: 4px 6px; } #document-name { flex: 1 1 calc(100% - 80px); } #status { max-width: 70px; } }

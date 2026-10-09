@@ -24,6 +24,14 @@ Abre el repositorio en VS Code y presiona **F5**. Los archivos `.vscode/launch.j
 | `src/parsers/fileParser.ts` | CSV/TSV con PapaParse y libros con SheetJS |
 | `media/table.js` | Renderizado de tabla, filtros, orden y edición de celdas |
 | `media/table.css` | Interfaz adaptable con los colores del tema de VS Code |
+| `src/spreadsheetEditorProvider.ts` | Editor JSON nativo experimental, importación y exportación de valores |
+| `src/parsers/spreadsheetParser.ts` | Snapshots Univer con tipos y hojas múltiples; exportación de valores |
+| `src/pivot.ts` | Agrupaciones y totales de pivots validados mediante lodash |
+| `src/clipboard.ts` | Copiado/pegado TSV con comillas, texto literal y rangos limitados |
+| `media/spreadsheet.js` | Spreadsheet Univer OSS local y sincronización del documento |
+| `scripts/build-webview.cjs` | Empaqueta recursos frontend y avisos de licencias de terceros |
+| `tests/spreadsheet.test.cjs` | Pruebas de adaptadores/protocolo y preview de navegador |
+| `tests/extension-host.test.cjs` | Prueba aislada de activación, guardado y portapapeles en VS Code real |
 | `tests/package.test.cjs` | Verificación del VSIX independiente y lectura/escritura de formatos |
 | `.github/workflows/validate.yml` | Validación del paquete en pushes y pull requests a main |
 | `.github/workflows/release.yml` | Validación del tag de versión y publicación |
@@ -37,9 +45,21 @@ npm run compile       # Compilar TypeScript
 npm run watch         # Recompilar al modificar archivos
 npm test              # Compilar, empaquetar y probar table-viewer.vsix
 npm run test:package  # Probar un table-viewer.vsix existente
+npm run test:spreadsheet # Compilar y probar adaptadores y protocolo del host
+npm run test:extension-host # VS Code real con perfil temporal
+npm run watch:webview # Reconstruir recursos Univer al cambiar el frontend
+npm run preview:spreadsheet # Preview tras compilar, localhost:39431
 ```
 
-`npm test` extrae el VSIX en un directorio temporal fuera del repositorio. Comprueba recursos, activa la extensión con una API de VS Code simulada y verifica lectura/escritura de CSV, TSV, XLSX, XLS y ODS utilizando solo las dependencias empaquetadas. También verifica la conservación del delimitador punto y coma.
+`npm test` ejecuta pruebas de adaptadores/protocolo y extrae el VSIX fuera del repositorio. Comprueba recursos y avisos de licencias, activa ambos editores con una API de VS Code simulada, verifica lectura/escritura de CSV, TSV, TXT, XLSX, XLS y ODS y comprueba DBF de solo lectura y adaptadores nativos usando solo las dependencias empaquetadas. También verifica la conservación del delimitador punto y coma.
+
+`npm run compile` compila TypeScript y la webview Univer. La tarea `watch` existente observa solo TypeScript; ejecuta `watch:webview` por separado para cambios frontend. Univer y esbuild son dependencias de desarrollo: el frontend se empaqueta en `media/generated/`, sin cargar Node modules ni CDN en ejecución. Incluye los recursos generados en el VSIX aunque Git los ignore. La compilación recopila las licencias de los paquetes incluidos. Mantén todos los paquetes Univer fijados a versiones coincidentes.
+
+El preview utiliza el HTML y la CSP de producción con un host VS Code simulado, un libro sintético de dos hojas y un portapapeles en memoria; no accede al portapapeles del sistema. Las comprobaciones de navegador cubren renderizado no vacío, cálculo, formato, deshacer/rehacer, creación/actualización/recarga de pivots, copiado/pegado de valores, temas y ancho reducido. Los documentos nativos usan el ciclo de vida de texto de VS Code; las ediciones son snapshots versionados y la exportación conserva solo valores. Las definiciones de pivots se guardan en metadatos personalizados de la hoja de resultados, vinculados a la versión fijada de Univer. Los valores del portapapeles pasan por `vscode.env.clipboard` mediante acciones explícitas del usuario.
+
+`test:extension-host` inicia el VS Code instalado con perfil y directorio de extensiones temporales, comprueba activación, apertura, guardado y API del portapapeles, y restaura el contenido original sin registrarlo. En macOS detecta instalaciones habituales; en otros entornos define `VSCODE_TEST_EXECUTABLE` con el ejecutable de la aplicación. Es independiente de `npm test` porque requiere una instalación con GUI. No automatiza Excel/Sheets. Las pruebas DBF usan fixtures binarios independientes de dBASE III y Visual FoxPro, con CP1252, fechas, decimales, booleanos y registros borrados. Los DBF reales anonimizados y el intercambio con aplicaciones externas siguen como comprobaciones manuales. La importación de memos y la escritura DBF deben fallar explícitamente.
+
+SheetJS está fijado al tarball oficial 0.20.3 porque npm permanece en 0.18.5. El lockfile registra integridad y la prueba del VSIX aislado exige esa versión empaquetada. Ejecuta `npm audit --omit=dev` para comprobar producción; las herramientas de desarrollo pueden mantener avisos independientes. No sustituyas la fuente oficial por el paquete antiguo de npm. Fuente: https://docs.sheetjs.com/docs/getting-started/installation/nodejs/.
 
 TypeScript conserva los imports de `papaparse` y `xlsx`, por lo que deben incluirse sus dependencias de producción. No excluyas `node_modules/**` ni uses `--no-dependencies` sin incorporar antes un bundler.
 

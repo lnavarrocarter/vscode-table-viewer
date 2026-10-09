@@ -52,6 +52,7 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
           break;
 
         case 'edit': {
+          if (document.tableData.readOnly) break;
           const { row, col, value } = msg;
           document.tableData.rows[row][col] = value;
           const edit: vscode.CustomDocumentEditEvent<TableDocument> = {
@@ -84,6 +85,7 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
   }
 
   async saveCustomDocument(document: TableDocument, _token: vscode.CancellationToken): Promise<void> {
+    if (document.tableData.readOnly) throw new Error('This file is read-only. Use Save As to export it.');
     const ext = path.extname(document.uri.fsPath).toLowerCase().replace('.', '');
     const bytes = await serializeFile(document.tableData, ext);
     await vscode.workspace.fs.writeFile(document.uri, bytes);
@@ -103,7 +105,9 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
 
   async backupCustomDocument(document: TableDocument, context: vscode.CustomDocumentBackupContext, _token: vscode.CancellationToken): Promise<vscode.CustomDocumentBackup> {
     const ext = path.extname(document.uri.fsPath).toLowerCase().replace('.', '');
-    const bytes = await serializeFile(document.tableData, ext);
+    const bytes = document.tableData.readOnly
+      ? await vscode.workspace.fs.readFile(document.uri)
+      : await serializeFile(document.tableData, ext);
     await vscode.workspace.fs.writeFile(context.destination, bytes);
     return { id: context.destination.toString(), delete: async () => { try { await vscode.workspace.fs.delete(context.destination); } catch {} } };
   }
