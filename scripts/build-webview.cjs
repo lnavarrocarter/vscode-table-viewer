@@ -4,8 +4,8 @@ const path = require('node:path');
 
 async function build() {
   const options = {
-    entryPoints: ['media/spreadsheet.js'], bundle: true, minify: true, format: 'iife',
-    target: 'chrome114', outfile: 'media/generated/spreadsheet.js', legalComments: 'eof',
+    entryPoints: ['media/spreadsheet.js', 'media/table.js'], bundle: true, minify: true, format: 'iife',
+    target: 'chrome114', outdir: 'media/generated', legalComments: 'eof',
     metafile: true, logLevel: 'info'
   };
   const licenses = {

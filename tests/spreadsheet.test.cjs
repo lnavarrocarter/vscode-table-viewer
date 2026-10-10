@@ -2,9 +2,10 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const XLSX = require('xlsx');
 const { parseFile, serializeFile } = require('../out/parsers/fileParser');
-const { importSpreadsheet, readSpreadsheet, exportSpreadsheetValues } = require('../out/parsers/spreadsheetParser');
+const { importSpreadsheet, readSpreadsheet, exportSpreadsheetValues, prepareSpreadsheet } = require('../out/parsers/spreadsheetParser');
 const { buildPivot, usedRange } = require('../out/pivot');
 const { clipboardCells, encodeClipboard } = require('../out/clipboard');
+const { matchesFilter, aggregateValues } = require('../out/tableAnalysis');
 
 function fixture() {
   const workbook = XLSX.utils.book_new();
@@ -58,6 +59,66 @@ function independentDbf(variant) {
 }
 
 if (!process.argv.includes('--preview')) {
+  test('column filters preserve identifiers and aggregations use decimal arithmetic', () => {
+    assert.equal(matchesFilter('Jos\u00e9', 'contains', 'JOS'), true);
+    assert.equal(matchesFilter('0012', 'equals', '12'), false);
+    assert.equal(matchesFilter('12abc', 'greater', '10'), false);
+    assert.equal(matchesFilter('-2.5', 'less', '0'), true);
+    assert.equal(matchesFilter('  ', 'empty', ''), true);
+    assert.equal(matchesFilter('0', 'notEmpty', ''), true);
+    assert.equal(matchesFilter('A', 'notEquals', 'a'), false);
+    const values = ['0.1', '0.2', '', 'bad', '12abc'];
+    assert.deepEqual(aggregateValues(values, 'SUM'), { value: '0.3', numericCount: 2, ignoredCount: 3 });
+    assert.equal(aggregateValues(values, 'COUNT').value, '5');
+    assert.equal(aggregateValues(values, 'AVERAGE').value, '0.15');
+    assert.equal(aggregateValues(['-2', '3', '0'], 'MIN').value, '-2');
+    assert.equal(aggregateValues(['-2', '3', '0'], 'MAX').value, '3');
+    assert.equal(aggregateValues([], 'COUNT').value, '0');
+    assert.equal(aggregateValues(['bad'], 'SUM').value, '');
+  });
+  test('empty documents and simple JSON arrays become valid spreadsheets', async () => {
+    for (const text of ['', '  \n', '[]']) {
+      const data = await prepareSpreadsheet(text, 'New');
+      assert.equal(readSpreadsheet(JSON.stringify(data)).sheetOrder.length, 1);
+      assert.deepEqual(data.sheets['sheet-1'].cellData, {});
+    }
+    const flat = await prepareSpreadsheet('["0012", 42, true, null]', 'Values');
+    assert.equal(flat.sheets['sheet-1'].cellData[0][0].v, '0012');
+    assert.equal(flat.sheets['sheet-1'].cellData[1][0].v, 42);
+    assert.equal(flat.sheets['sheet-1'].cellData[2][0].v, true);
+    const matrix = await prepareSpreadsheet('[["Name", "Amount"], ["Ana", 12], ["=1+1"]]', 'Rows');
+    assert.equal(matrix.sheets['sheet-1'].cellData[1][1].v, 12);
+    assert.equal(matrix.sheets['sheet-1'].cellData[2][0].v, '=1+1');
+    assert.equal(matrix.sheets['sheet-1'].cellData[2][0].f, undefined);
+    for (const text of ['{}', '[[[1]]]', '[1, [2]]', 'invalid']) {
+      await assert.rejects(prepareSpreadsheet(text, 'Invalid'));
+    }
+  });
+
+  test('JSON object arrays and wrapped users produce headers and typed rows without losing fields', async () => {
+    const users = [
+      { id: 1, name: 'John Doe', email: 'john.doe@example.com' },
+      { id: 2, name: 'Jane Smith', email: 'jane.smith@example.com' }
+    ];
+    for (const input of [users, [{ users }]]) {
+      const data = await prepareSpreadsheet(JSON.stringify(input), 'Users');
+      const cells = data.sheets['sheet-1'].cellData;
+      assert.deepEqual([cells[0][0].v, cells[0][1].v, cells[0][2].v], ['id', 'name', 'email']);
+      assert.equal(cells[1][0].v, 1);
+      assert.equal(cells[1][1].v, 'John Doe');
+      assert.equal(cells[2][2].v, 'jane.smith@example.com');
+    }
+    const varied = await prepareSpreadsheet('[{"id":1},{"email":"a@example.com","details":{"active":true}}]', 'Varied');
+    const cells = varied.sheets['sheet-1'].cellData;
+    assert.equal(cells[0][2].v, 'details');
+    assert.equal(cells[2][2].v, '{"active":true}');
+    const wrapper = await prepareSpreadsheet(JSON.stringify([{ users, total: 2 }]), 'Wrapper');
+    assert.equal(wrapper.sheets['sheet-1'].cellData[0][0].v, 'users');
+    assert.equal(wrapper.sheets['sheet-1'].cellData[1][0].v, JSON.stringify(users));
+    assert.equal(wrapper.sheets['sheet-1'].cellData[1][1].v, 2);
+    await assert.rejects(prepareSpreadsheet('[{"id":1},2]', 'Mixed'));
+  });
+
   test('clipboard TSV handles quoted newlines, ragged rows and literal formulas', () => {
     const text = encodeClipboard([['Code', 'Note'], ['0012', 'first\nsecond'], ['=1+1', 'text\twith tab']]);
     const values = clipboardCells(text);
@@ -171,6 +232,31 @@ if (!process.argv.includes('--preview')) {
     }
   });
 
+  test('DBF structural validation rejects damaged descriptors and records in both readers', async () => {
+    const corruptions = [
+      [buffer => { buffer[15] = 1; }, /Encrypted/],
+      [buffer => { buffer[32 + 4 * 32] = 0; }, /descriptor|terminator|field name/],
+      [buffer => { buffer[48] = 0; }, /width/],
+      [buffer => { buffer.fill(0, 32, 43); }, /field name/],
+      [buffer => { buffer.copy(buffer, 64, 32, 43); }, /duplicate/],
+      [buffer => { buffer.writeUInt16LE(buffer.readUInt16LE(10) + 1, 10); buffer.writeUInt32LE(1, 4); }, /record length/],
+      [buffer => { buffer[buffer.readUInt16LE(8)] = 0x7f; }, /deletion marker/]
+    ];
+    for (const variant of [0x03, 0x30]) {
+      for (const [damage, message] of corruptions) {
+        const bytes = independentDbf(variant);
+        damage(bytes);
+        await assert.rejects(parseFile(bytes, 'dbf'), message);
+        await assert.rejects(importSpreadsheet(bytes, 'dbf', 'Damaged'), message);
+      }
+      const empty = independentDbf(variant);
+      empty.writeUInt32LE(0, 4);
+      const table = await parseFile(empty.subarray(0, empty.readUInt16LE(8)), 'dbf');
+      assert.deepEqual(table.headers, ['Name', 'Amount', 'Date', 'Active']);
+      assert.deepEqual(table.rows, []);
+    }
+  });
+
   test('value-only exports preserve sheets and scalar types, but never formula definitions', async () => {
     const data = await importSpreadsheet(fixture(), 'xlsx', 'Example');
     const workbook = XLSX.read(exportSpreadsheetValues(data, 'xlsx', 'sheet-1'), { type: 'array' });
@@ -204,7 +290,7 @@ if (!process.argv.includes('--preview')) {
     let text = JSON.stringify(data);
     let savedText;
     const document = {
-      uri: { toString: () => 'test.sheet.json' }, version: 1, lineCount: 1,
+      uri: { path: '/test.sheet.json', with: () => ({ path: '/chart.png' }), toString: () => 'test.sheet.json' }, version: 1, lineCount: 1,
       getText: () => text, save: async () => { savedText = text; return true; }
     };
     const api = {
@@ -215,6 +301,7 @@ if (!process.argv.includes('--preview')) {
       Range: class {},
       WorkspaceEdit: class { replace(uri, range, value) { this.value = value; } },
       workspace: {
+        fs: { writeFile: async (uri, bytes) => { listeners.png = { uri, bytes }; } },
         onDidChangeTextDocument: listener => { listeners.change = listener; return { dispose() {} }; },
         applyEdit: async edit => {
           await Promise.resolve();
@@ -224,7 +311,7 @@ if (!process.argv.includes('--preview')) {
           return true;
         }
       },
-      window: { showErrorMessage: message => { throw new Error(message); } }
+      window: { showSaveDialog: async () => ({ path: '/chart.png', toString: () => '/chart.png' }), showErrorMessage: message => { throw new Error(message); } }
     };
     Module._load = function (id, ...args) { return id === 'vscode' ? api : originalLoad.call(this, id, ...args); };
     const providerPath = require.resolve('../out/spreadsheetEditorProvider');
@@ -247,6 +334,11 @@ if (!process.argv.includes('--preview')) {
     await listeners.message({ type: 'clipboardWrite', requestId: 2, text: 'Name\tAmount\nAna\t42' });
     assert.equal(listeners.clipboard, 'Name\tAmount\nAna\t42');
     assert.equal(messages.at(-1).requestId, 2);
+    const png = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a4d8AAAAASUVORK5CYII=';
+    await listeners.message({ type: 'exportChart', dataUrl: `data:image/png;base64,${png}` });
+    assert.equal(listeners.png.uri.path, '/chart.png');
+    assert.deepEqual(listeners.png.bytes, Buffer.from(png, 'base64'));
+    await assert.rejects(listeners.message({ type: 'exportChart', dataUrl: 'data:image/png;base64,aGVsbG8=' }), /signature/);
     const edited = structuredClone(data);
     edited.sheets['sheet-1'].cellData[1][1].v = 20;
     const editing = listeners.message({ type: 'edit', data: edited, version: 1 });
@@ -272,13 +364,19 @@ if (!process.argv.includes('--preview')) {
   const Module = require('node:module');
   const originalLoad = Module._load;
   Module._load = function (id, ...args) {
-    if (id === 'vscode') return { Uri: { joinPath: (base, ...parts) => path.join(base, ...parts) } };
+    if (id === 'vscode') return { Uri: { joinPath: (base, ...parts) => path.join(base, ...parts) }, EventEmitter: class { event() {} } };
     return originalLoad.call(this, id, ...args);
   };
   const { SpreadsheetEditorProvider } = require('../out/spreadsheetEditorProvider');
+  const { TableEditorProvider } = require('../out/tableEditorProvider');
   Module._load = originalLoad;
   const provider = new SpreadsheetEditorProvider({ extensionUri: '/' });
-  importSpreadsheet(fixture(), 'xlsx', 'Spreadsheet test').then(data => {
+  const samplePath = path.join(__dirname, '../examples/ventas-demo.xlsx');
+  const sampleBuffer = fs.readFileSync(samplePath);
+  Promise.all([
+    importSpreadsheet(sampleBuffer, 'xlsx', 'Ventas demo'),
+    parseFile(sampleBuffer, 'xlsx')
+  ]).then(([data, tableData]) => {
     let html = provider.getHtml({ cspSource: "'self'", asWebviewUri: value => value });
     const nonce = html.match(/script-src 'nonce-([^']+)'/)[1];
     const bootstrap = `<script nonce="${nonce}">
@@ -301,17 +399,32 @@ if (!process.argv.includes('--preview')) {
       }});
       window.addEventListener('error', event => { window.__error = event.message; });
     </script>`;
-    html = html.replace('<main id="spreadsheet">', `${bootstrap}<main id="spreadsheet">`);
+    html = html.replace('<main id="sheet-stage">', `${bootstrap}<main id="sheet-stage">`);
+    const tableProvider = new TableEditorProvider({ extensionUri: '/' });
+    let tableHtml = tableProvider._getHtml({ cspSource: "'self'", asWebviewUri: value => value });
+    const tableNonce = tableHtml.match(/script-src 'nonce-([^']+)'/)[1];
+    const tableBootstrap = `<script nonce="${tableNonce}">
+      window.acquireVsCodeApi = () => ({ postMessage(message) {
+        if (message.type === 'ready') queueMicrotask(() => window.dispatchEvent(new MessageEvent('message', { data: { type: 'load', data: ${JSON.stringify(tableData)} } })));
+      }});
+    </script>`;
+    tableHtml = tableHtml.replace('<main id="table-container"', `${tableBootstrap}<main id="table-container"`);
     const assets = new Map([
       ['/media/generated/spreadsheet.js', ['application/javascript', path.join(__dirname, '../media/generated/spreadsheet.js')]],
-      ['/media/generated/spreadsheet.css', ['text/css', path.join(__dirname, '../media/generated/spreadsheet.css')]]
+      ['/media/generated/spreadsheet.css', ['text/css', path.join(__dirname, '../media/generated/spreadsheet.css')]],
+      ['/media/generated/table.js', ['application/javascript', path.join(__dirname, '../media/generated/table.js')]],
+      ['/media/table.css', ['text/css', path.join(__dirname, '../media/table.css')]]
     ]);
     http.createServer((request, response) => {
+      if (request.url === '/table') { response.setHeader('Content-Type', 'text/html'); response.end(tableHtml); return; }
       if (request.url === '/') { response.setHeader('Content-Type', 'text/html'); response.end(html); return; }
       const asset = assets.get(request.url);
       if (!asset) { response.writeHead(404); response.end(); return; }
       response.setHeader('Content-Type', asset[0]);
       fs.createReadStream(asset[1]).pipe(response);
-    }).listen(39431, '127.0.0.1', () => console.log('Spreadsheet preview: http://127.0.0.1:39431'));
+    }).listen(39431, '127.0.0.1', () => {
+      console.log('Table Viewer preview: http://127.0.0.1:39431/table');
+      console.log('Spreadsheet preview: http://127.0.0.1:39431');
+    });
   }).catch(error => { console.error(error); process.exitCode = 1; });
 }

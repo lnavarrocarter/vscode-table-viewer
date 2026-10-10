@@ -25,6 +25,7 @@ test('VSIX runs with only its packaged dependencies and assets', () => {
         if (id === 'vscode') return {
           EventEmitter: class { event = () => {}; },
           window: {
+            createOutputChannel: () => ({ dispose() {} }),
             registerCustomEditorProvider: (id) => { registrations.push(id); return { dispose() {} }; },
             registerCustomTextEditorProvider: (id) => { registrations.push(id); return { dispose() {} }; }
           },
@@ -36,8 +37,11 @@ test('VSIX runs with only its packaged dependencies and assets', () => {
         const manifest = require('./package.json');
         const context = { subscriptions: [] };
         require(manifest.main).activate(context);
-        assert.deepEqual(registrations, [manifest.contributes.customEditors[0].viewType, manifest.contributes.customEditors[1].viewType, manifest.contributes.commands[1].command, manifest.contributes.commands[0].command]);
-        assert.equal(context.subscriptions.length, 4);
+        assert.deepEqual(registrations.sort(), [
+          ...manifest.contributes.customEditors.map(editor => editor.viewType),
+          ...manifest.contributes.commands.map(command => command.command)
+        ].sort());
+        assert.equal(context.subscriptions.length, registrations.length + 2);
         const { parseFile, serializeFile } = require('./out/parsers/fileParser.js');
         const data = { headers: ['Name', 'Note'], rows: [['José', 'hello, world'], ['Ana', 'line 1\\nline 2']] };
         for (const ext of ['csv', 'tsv', 'txt', 'xlsx', 'xls', 'ods']) {

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { randomBytes } from 'crypto';
-import { importSpreadsheet, readSpreadsheet, exportSpreadsheetValues } from './parsers/spreadsheetParser';
+import { importSpreadsheet, readSpreadsheet, exportSpreadsheetValues, prepareSpreadsheet } from './parsers/spreadsheetParser';
 
 export class SpreadsheetEditorProvider implements vscode.CustomTextEditorProvider {
   static readonly viewType = 'csvXlsTableViewer.spreadsheetEditor';
@@ -42,7 +42,51 @@ export class SpreadsheetEditorProvider implements vscode.CustomTextEditorProvide
 
   constructor(private readonly context: vscode.ExtensionContext) {}
 
+  static async createFile(): Promise<void> {
+    const destination = await vscode.window.showSaveDialog({
+      filters: { 'OpenSpreadsheet document': ['sheet.json'] },
+      defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri.with({
+        path: `${vscode.workspace.workspaceFolders[0].uri.path}/Untitled.sheet.json`
+      })
+    });
+    if (!destination) return;
+    try {
+      if (!destination.path.endsWith('.sheet.json')) throw new Error('Use the .sheet.json extension.');
+      const data = await prepareSpreadsheet('', path.basename(destination.path));
+      await vscode.workspace.fs.writeFile(destination, Buffer.from(JSON.stringify(data, null, 2)));
+      await vscode.commands.executeCommand('vscode.openWith', destination, this.viewType);
+    } catch (error) {
+      await vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   async resolveCustomTextEditor(document: vscode.TextDocument, panel: vscode.WebviewPanel): Promise<void> {
+    const originalText = document.getText();
+    try {
+      readSpreadsheet(originalText);
+    } catch {
+      try {
+        const data = await prepareSpreadsheet(originalText, path.basename(document.uri.path));
+        if (originalText.trim()) {
+          const accepted = await vscode.window.showWarningMessage(
+            'Convert this JSON array into an OpenSpreadsheet document? Object keys become column headers; nested values are preserved as JSON text. This replaces the document content and can be undone.',
+            { modal: true }, 'Convert document'
+          );
+          if (accepted !== 'Convert document') {
+            await vscode.commands.executeCommand('vscode.openWith', document.uri, 'default');
+            return;
+          }
+        }
+        if (document.getText() !== originalText) throw new Error('The document changed. Reopen it to convert the latest content.');
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(document.uri, new vscode.Range(0, 0, document.lineCount, 0), JSON.stringify(data, null, 2));
+        if (!await vscode.workspace.applyEdit(edit)) throw new Error('Could not initialize the spreadsheet document.');
+      } catch (error) {
+        await vscode.window.showErrorMessage(error instanceof Error ? error.message : String(error));
+        await vscode.commands.executeCommand('vscode.openWith', document.uri, 'default');
+        return;
+      }
+    }
     panel.webview.options = {
       enableScripts: true, localResourceRoots: [vscode.Uri.joinPath(this.context.extensionUri, 'media')]
     };
@@ -62,6 +106,18 @@ export class SpreadsheetEditorProvider implements vscode.CustomTextEditorProvide
       try {
         switch (message.type) {
           case 'ready': load(); break;
+          case 'connectAgent': await vscode.commands.executeCommand('csvXlsTableViewer.connectAgent', document.uri); break;
+          case 'exportChart': {
+            if (typeof message.dataUrl !== 'string' || message.dataUrl.length > 12 * 1024 * 1024 || !/^data:image\/png;base64,[A-Za-z0-9+/=]+$/.test(message.dataUrl)) throw new Error('Invalid or oversized PNG image.');
+            const bytes = Buffer.from(message.dataUrl.slice('data:image/png;base64,'.length), 'base64');
+            if (!bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))) throw new Error('Invalid PNG signature.');
+            const destination = await vscode.window.showSaveDialog({ filters: { 'PNG image': ['png'] },
+              defaultUri: document.uri.with({ path: document.uri.path.replace(/[^/]+$/, 'chart.png') }) });
+            if (!destination) break;
+            if (!destination.path.toLowerCase().endsWith('.png') || destination.toString() === document.uri.toString()) throw new Error('Choose a .png destination.');
+            await vscode.workspace.fs.writeFile(destination, bytes);
+            break;
+          }
           case 'edit': {
             const write = writes.then(async () => {
               if (message.version !== document.version) { load(); return; }
@@ -132,6 +188,8 @@ export class SpreadsheetEditorProvider implements vscode.CustomTextEditorProvide
 <link rel="stylesheet" href="${resource('generated/spreadsheet.css')}">
 <title>Spreadsheet</title></head><body>
 <header id="spreadsheet-toolbar"><span id="document-name">Spreadsheet</span><span id="status" role="status">Loading...</span>
+<button id="connect-agent" type="button" title="Connect Sheet Agent (MCP)" aria-label="Connect Sheet Agent (MCP)"></button>
+<button id="chart" type="button" title="Insert chart" aria-label="Insert chart"></button>
 <button id="copy-values" type="button" title="Copy values" aria-label="Copy values"></button>
 <button id="paste-values" type="button" title="Paste values" aria-label="Paste values"></button>
 <button id="pivot" type="button" title="Create pivot table" aria-label="Create pivot table"></button>
@@ -151,7 +209,19 @@ export class SpreadsheetEditorProvider implements vscode.CustomTextEditorProvide
 <p id="pivot-error" role="alert"></p><div class="dialog-actions">
 <button id="pivot-cancel" type="button">Cancel</button><button id="pivot-create" type="submit">Create</button>
 </div></form></dialog>
-<main id="spreadsheet"></main><script nonce="${nonce}" src="${resource('generated/spreadsheet.js')}"></script>
+<dialog id="chart-dialog" aria-labelledby="chart-heading"><form id="chart-form">
+<h2 id="chart-heading">Chart</h2>
+<label for="chart-title-input">Title</label><input id="chart-title-input" maxlength="100" required>
+<label for="chart-type">Type</label><select id="chart-type"><option value="bar">Columns</option><option value="horizontal">Horizontal bars</option><option value="stacked">Stacked columns</option><option value="combo">Columns + line (last series)</option><option value="line">Line</option><option value="pie">Pie</option></select>
+<label for="chart-format">Number format</label><select id="chart-format"><option value="number">Number</option><option value="currency">Currency</option><option value="percent">Percent (0.25 = 25%)</option></select>
+<label for="chart-currency">Currency</label><select id="chart-currency"><option>USD</option><option>CLP</option><option>EUR</option><option>MXN</option><option>ARS</option><option>PEN</option></select>
+<label for="chart-range">Range</label><input id="chart-range" required autocomplete="off">
+<label for="chart-width">Width</label><input id="chart-width" type="number" min="280" max="1000" step="10" value="440" required>
+<label for="chart-height">Height</label><input id="chart-height" type="number" min="200" max="700" step="10" value="300" required>
+<label><input id="chart-legend" type="checkbox" checked> Legend</label>
+<p id="chart-error" role="alert"></p><div class="dialog-actions"><button id="chart-cancel" type="button">Cancel</button><button type="submit">Apply</button></div>
+</form></dialog>
+<main id="sheet-stage"><div id="spreadsheet"></div><div id="chart-layer"></div></main><script nonce="${nonce}" src="${resource('generated/spreadsheet.js')}"></script>
 </body></html>`;
   }
 }

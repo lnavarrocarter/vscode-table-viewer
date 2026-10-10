@@ -7,6 +7,22 @@ body { display: flex; flex-direction: column; background: var(--vscode-editor-ba
 #spreadsheet-toolbar button:hover { background: var(--vscode-toolbar-hoverBackground, #eee); }
 #spreadsheet-toolbar button:focus-visible { outline: 2px solid var(--vscode-focusBorder, #007acc); }
 #spreadsheet { flex: 1; min-height: 0; min-width: 0; position: relative; }
+#sheet-stage { flex: 1; min-height: 0; min-width: 0; position: relative; }
+#sheet-stage #spreadsheet { position: absolute; inset: 0; }
+#chart-layer { position: absolute; inset: 0; pointer-events: none; overflow: hidden; z-index: 20; }
+.sheet-chart { position: absolute; width: min(440px, 100%); height: min(300px, 100%); background: var(--vscode-editor-background, #fff); color: var(--vscode-editor-foreground, #222); border: 1px solid var(--vscode-panel-border, #aaa); border-radius: 4px; pointer-events: auto; box-sizing: border-box; display: flex; flex-direction: column; }
+.sheet-chart header { display: flex; gap: 4px; align-items: center; padding: 4px 6px; min-height: 30px; cursor: move; touch-action: none; border-bottom: 1px solid var(--vscode-panel-border, #ddd); }
+.sheet-chart header span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; }
+.sheet-chart button { width: 28px; height: 28px; flex: 0 0 28px; display: grid; place-items: center; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.sheet-chart button:hover { background: var(--vscode-toolbar-hoverBackground, #eee); }
+.sheet-chart-body { flex: 1; min-height: 0; padding: 8px; position: relative; overflow: hidden; }
+#chart-dialog { width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; box-sizing: border-box; padding: 20px; background: var(--vscode-editor-background, #fff); color: inherit; border: 1px solid var(--vscode-panel-border, #aaa); border-radius: 6px; }
+#chart-dialog::backdrop { background: rgb(0 0 0 / 35%); }
+#chart-form { display: grid; gap: 8px; }
+#chart-heading { margin: 0 0 8px; font-size: 16px; }
+#chart-form input, #chart-form select { width: 100%; min-width: 0; box-sizing: border-box; padding: 6px; color: var(--vscode-input-foreground, #222); background: var(--vscode-input-background, #fff); border: 1px solid var(--vscode-input-border, #aaa); font: inherit; }
+#chart-error { color: var(--vscode-errorForeground, #b42318); font-size: 12px; margin: 0; }
+#chart-form input[type="checkbox"] { width: auto; }
 #spreadsheet-toolbar button:disabled { opacity: 0.4; cursor: default; }
 #pivot-dialog { width: min(380px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 20px; box-sizing: border-box; border: 1px solid var(--vscode-panel-border, #ddd); border-radius: 6px; background: var(--vscode-editor-background, #fff); color: inherit; }
 #pivot-dialog::backdrop { background: rgb(0 0 0 / 35%); }

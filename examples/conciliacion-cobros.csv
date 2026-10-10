@@ -1,0 +1,13 @@
+Referencia,Fecha_movimiento,Id_movimiento,Contraparte,Moneda,Importe,Canal,Observacion
+FAC-2026-0901,2026-09-25,MOV-000481,Distribuidora Horizonte,USD,1240.50,Transferencia,Cobro completo
+FAC-2026-0902,2026-09-26,MOV-000482,Comercial Puerto Claro,USD,875.00,Transferencia,Cobro completo
+FAC-2026-0903,2026-09-26,MOV-000483,Logistica Valle Central,USD,2300.75,Transferencia,Diferencia pendiente de investigacion
+FAC-2026-0904,2026-09-27,MOV-000484,Consultora Mirador,USD,500.00,Tarjeta,Diferencia de redondeo
+FAC-2026-0905,2026-09-27,MOV-000485,Servicios Costa Verde,USD,900.00,Transferencia,Anticipo del 50 por ciento
+FAC-2026-0906,2026-09-28,MOV-000486,Alimentos Rio Claro,USD,700.00,Transferencia,Primer abono
+FAC-2026-0906,2026-09-29,MOV-000487,Alimentos Rio Claro,USD,500.00,Transferencia,Segundo abono
+FAC-2026-0909,2026-09-29,MOV-000488,Comercial Puerto Claro,USD,95.25,Transferencia,Cobro completo
+FAC-2026-0910,2026-09-30,MOV-000489,Distribuidora Horizonte,USD,1560.00,Transferencia,Importe coincide con dos registros ERP revisar duplicado
+NC-2026-0041,2026-09-30,MOV-000490,Consultora Mirador,USD,-150.00,Transferencia,Reembolso al cliente
+FAC-2026-0899,2026-09-30,MOV-000491,Textiles Aurora,USD,420.00,Transferencia,Referencia del periodo anterior no incluida en este extracto
+ANT-2026-0100,2026-09-30,MOV-000492,Insumos Cordillera,USD,300.00,Transferencia,Anticipo sin factura emitida

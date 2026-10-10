@@ -51,6 +51,25 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
           webviewPanel.webview.postMessage({ type: 'load', data: document.tableData });
           break;
 
+        case 'importSpreadsheet': {
+          const hasUnsavedChanges = vscode.window.tabGroups.all.some(group => group.tabs.some(tab =>
+            tab.input instanceof vscode.TabInputCustom &&
+            tab.input.uri.toString() === document.uri.toString() && tab.isDirty
+          ));
+          if (hasUnsavedChanges) {
+            await vscode.window.showWarningMessage('Save your changes before opening this file as a spreadsheet.');
+            break;
+          }
+          await vscode.commands.executeCommand('csvXlsTableViewer.importSpreadsheet', document.uri);
+          break;
+        }
+
+        case 'connectAgent': {
+          const connected = await vscode.commands.executeCommand<boolean>('csvXlsTableViewer.connectAgent', document.uri);
+          if (connected) webviewPanel.webview.postMessage({ type: 'agentConnected' });
+          break;
+        }
+
         case 'edit': {
           if (document.tableData.readOnly) break;
           const { row, col, value } = msg;
@@ -114,7 +133,7 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
 
   private _getHtml(webview: vscode.Webview): string {
     const scriptUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'table.js')
+      vscode.Uri.joinPath(this.context.extensionUri, 'media', 'generated', 'table.js')
     );
     const styleUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this.context.extensionUri, 'media', 'table.css')
@@ -132,13 +151,30 @@ export class TableEditorProvider implements vscode.CustomEditorProvider<TableDoc
 <body>
   <header id="product-header">
     <div class="product-identity"><span class="product-mark" aria-hidden="true">▦</span><div><h1>Table Viewer</h1><p>A clearer view of your data.</p></div></div>
-    <span class="format-label">CSV · TSV · XLSX · XLS · ODS</span>
+    <span class="format-label">CSV · TSV · DBF · XLSX · XLS · ODS</span>
   </header>
   <div id="toolbar">
     <input id="filter-input" type="search" aria-label="Filter rows" placeholder="Filter rows…" autocomplete="off" />
     <span id="row-count" role="status" aria-live="polite"></span>
+    <button id="connect-agent-btn" type="button" title="Share this saved file with OpenSpreadsheet MCP">Connect Agent</button>
+    <button id="spreadsheet-btn" type="button" title="Create an experimental spreadsheet working copy">Open as Spreadsheet</button>
     <button id="save-btn" type="button">Save changes</button>
   </div>
+  <section id="analysis-toolbar" aria-label="Filters and aggregation">
+    <label>Column <select id="column-filter"><option value="">All columns</option></select></label>
+    <select id="filter-operator" aria-label="Filter operator">
+      <option value="contains">Contains</option><option value="equals">Equals</option>
+      <option value="notEquals">Not equal</option><option value="greater">Greater than</option>
+      <option value="less">Less than</option><option value="empty">Empty</option><option value="notEmpty">Not empty</option>
+    </select>
+    <input id="column-value" type="text" aria-label="Filter value" placeholder="Value" />
+    <button id="clear-filters" type="button" title="Clear filters" aria-label="Clear filters"><i data-lucide="filter-x"></i></button>
+    <label>Aggregate <select id="aggregate-column"></select></label>
+    <select id="aggregate-operation" aria-label="Aggregation">
+      <option>COUNT</option><option>SUM</option><option>AVERAGE</option><option>MIN</option><option>MAX</option>
+    </select>
+    <output id="aggregate-result" aria-live="polite"></output>
+  </section>
   <main id="table-container" aria-label="Table data">
     <div id="loading" role="status">Loading your table…</div>
   </main>

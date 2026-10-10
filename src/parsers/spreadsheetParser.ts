@@ -1,7 +1,37 @@
 import * as Papa from 'papaparse';
 import * as XLSX from 'xlsx';
 import type { IWorkbookData, ICellData } from '@univerjs/presets';
-import { parseFile } from './fileParser';
+import { validateDbf } from './fileParser';
+
+export async function prepareSpreadsheet(text: string, name: string): Promise<IWorkbookData> {
+  const values: unknown = text.trim() ? JSON.parse(text) : [];
+  if (!Array.isArray(values)) throw new Error('Expected a JSON array of values, rows or objects.');
+  const isRecord = (value: unknown): value is Record<string, unknown> =>
+    value !== null && typeof value === 'object' && !Array.isArray(value);
+  let records = values;
+  if (values.length === 1 && isRecord(values[0])) {
+    const keys = Object.keys(values[0]);
+    const nested = values[0][keys[0]];
+    if (keys.length === 1 && Array.isArray(nested) && nested.every(isRecord)) records = nested;
+  }
+  let rows: unknown[][];
+  if (records.length && records.every(isRecord)) {
+    const headers = [...new Set(records.flatMap(record => Object.keys(record)))];
+    rows = [headers, ...records.map(record => headers.map(header => {
+      const value = record[header] ?? null;
+      return typeof value === 'object' && value !== null ? JSON.stringify(value) : value;
+    }))];
+  } else {
+    rows = records.every(Array.isArray) ? records : records.map(value => [value]);
+  }
+  const isScalar = (value: unknown) => value === null || ['string', 'number', 'boolean'].includes(typeof value);
+  if (!rows.every(row => Array.isArray(row) && row.every(isScalar))) {
+    throw new Error('Array cells must be strings, numbers, booleans or null.');
+  }
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(rows), 'Sheet1');
+  return importSpreadsheet(XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }), 'xlsx', name);
+}
 
 export function readSpreadsheet(text: string): IWorkbookData {
   const data = JSON.parse(text) as IWorkbookData;
@@ -18,7 +48,7 @@ export async function importSpreadsheet(buffer: Buffer, ext: string, name: strin
   if (!['csv', 'tsv', 'txt', 'dbf', 'xlsx', 'xls', 'ods'].includes(ext)) {
     throw new Error('Supported imports: CSV, TSV, tabulated TXT, DBF, XLSX, XLS and ODS.');
   }
-  if (ext === 'dbf') await parseFile(buffer, ext);
+  if (ext === 'dbf') validateDbf(buffer);
   const isText = ['csv', 'tsv', 'txt'].includes(ext);
   let workbook: XLSX.WorkBook;
   if (isText) {

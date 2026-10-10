@@ -1,0 +1,13 @@
+Referencia,Fecha_emision,Fecha_vencimiento,Cliente,Moneda,Importe,Tipo_documento,Observacion
+FAC-2026-0901,2026-09-02,2026-10-02,Distribuidora Horizonte,USD,1240.50,Factura,Servicios de soporte mensual
+FAC-2026-0902,2026-09-03,2026-10-03,Comercial Puerto Claro,USD,875.00,Factura,Licencias de gestion
+FAC-2026-0903,2026-09-04,2026-10-04,Logistica Valle Central,USD,2310.75,Factura,Implementacion de inventario
+FAC-2026-0904,2026-09-05,2026-10-05,Consultora Mirador,USD,499.99,Factura,Mantenimiento trimestral
+FAC-2026-0905,2026-09-08,2026-10-08,Servicios Costa Verde,USD,1800.00,Factura,Proyecto de integracion
+FAC-2026-0906,2026-09-09,2026-10-09,Alimentos Rio Claro,USD,1200.00,Factura,Capacitacion operativa
+FAC-2026-0907,2026-09-10,2026-10-10,Textiles Aurora,USD,640.00,Factura,Soporte de planta
+FAC-2026-0908,2026-09-12,2026-10-12,Insumos Cordillera,USD,3250.00,Factura,Automatizacion de compras
+FAC-2026-0909,2026-09-15,2026-10-15,Comercial Puerto Claro,USD,95.25,Factura,Horas adicionales
+FAC-2026-0910,2026-09-18,2026-10-18,Distribuidora Horizonte,USD,780.00,Factura,Servicio extraordinario
+FAC-2026-0910,2026-09-18,2026-10-18,Distribuidora Horizonte,USD,780.00,Factura,Posible duplicado de importacion ERP
+NC-2026-0041,2026-09-20,2026-09-20,Consultora Mirador,USD,-150.00,Nota_credito,Devolucion por servicio cancelado

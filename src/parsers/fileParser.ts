@@ -18,23 +18,7 @@ export async function parseFile(buffer: Buffer, ext: string): Promise<TableData>
     case 'txt':
       return parseCsv(buffer.toString('utf8'), '\t');
     case 'dbf': {
-      if (buffer.length < 32) throw new Error('Invalid DBF header.');
-      if (![0x03, 0x04, 0x05, 0x30, 0x31, 0x32, 0x43, 0x63, 0x83, 0x8b, 0xcb, 0xf5].includes(buffer[0])) {
-        throw new Error('Unsupported DBF variant. Expected a dBASE III/IV or Visual FoxPro table.');
-      }
-      const headerLength = buffer.readUInt16LE(8);
-      if (headerLength < 33 || headerLength > buffer.length) throw new Error('Invalid DBF header length.');
-      const recordLength = buffer.readUInt16LE(10);
-      const recordCount = buffer.readUInt32LE(4);
-      if (!recordLength || recordCount > Math.floor((buffer.length - headerLength) / recordLength)) {
-        throw new Error('Invalid or truncated DBF records.');
-      }
-      for (let offset = 32; offset + 32 <= headerLength && buffer[offset] !== 0x0d; offset += 32) {
-        const fieldType = String.fromCharCode(buffer[offset + 11]);
-        if (['M', 'G', 'P', 'W'].includes(fieldType)) {
-          throw new Error('DBF memo fields are not supported yet. Import a CSV export from FoxPro including the memo contents instead.');
-        }
-      }
+      validateDbf(buffer);
       return { ...parseXlsx(buffer), readOnly: true };
     }
     case 'xlsx':
@@ -43,6 +27,49 @@ export async function parseFile(buffer: Buffer, ext: string): Promise<TableData>
       return parseXlsx(buffer);
     default:
       return parseCsv(buffer.toString('utf8'));
+  }
+}
+
+export function validateDbf(buffer: Buffer): void {
+  if (buffer.length < 32) throw new Error('Invalid DBF header.');
+  if (![0x03, 0x04, 0x05, 0x30, 0x31, 0x32, 0x43, 0x63, 0x83, 0x8b, 0xcb, 0xf5].includes(buffer[0])) {
+    throw new Error('Unsupported DBF variant. Expected a dBASE III/IV or Visual FoxPro table.');
+  }
+  if (buffer[15]) throw new Error('Encrypted DBF tables are not supported. Export an unencrypted copy first.');
+  const headerLength = buffer.readUInt16LE(8);
+  if (headerLength < 33 || headerLength > buffer.length) throw new Error('Invalid DBF header length.');
+  const recordLength = buffer.readUInt16LE(10);
+  const recordCount = buffer.readUInt32LE(4);
+  if (!recordLength || recordCount > Math.floor((buffer.length - headerLength) / recordLength)) {
+    throw new Error('Invalid or truncated DBF records.');
+  }
+  let offset = 32;
+  let expectedLength = 1;
+  const names = new Set<string>();
+  while (offset < headerLength && buffer[offset] !== 0x0d) {
+    if (offset + 32 >= headerLength) throw new Error('Invalid DBF field descriptor or missing header terminator.');
+    const nameBytes = buffer.subarray(offset, offset + 11);
+    const terminator = nameBytes.indexOf(0);
+    const name = nameBytes.subarray(0, terminator < 0 ? 11 : terminator).toString('latin1').trim();
+    if (!name || names.has(name.toUpperCase())) throw new Error('Empty or duplicate DBF field name.');
+    names.add(name.toUpperCase());
+    const fieldType = String.fromCharCode(buffer[offset + 11]);
+    if (['M', 'G', 'P', 'W'].includes(fieldType)) {
+      throw new Error('DBF memo fields are not supported yet. Import a CSV export from FoxPro including the memo contents instead.');
+    }
+    const width = buffer[offset + 16] + (fieldType === 'C' ? buffer[offset + 17] * 256 : 0);
+    if (!width) throw new Error(`Invalid DBF field width: ${name}.`);
+    expectedLength += width;
+    offset += 32;
+  }
+  if (offset >= headerLength || buffer[offset] !== 0x0d) throw new Error('Missing DBF header terminator.');
+  if (!names.size || expectedLength !== recordLength) throw new Error('DBF field widths do not match the record length.');
+  for (let record = 0; record < recordCount; record++) {
+    const marker = buffer[headerLength + record * recordLength];
+    const compatibleFoxProMarker = marker === 0 && [0x30, 0x31, 0x32].includes(buffer[0]);
+    if (marker !== 0x20 && marker !== 0x2a && !compatibleFoxProMarker) {
+      throw new Error(`Invalid DBF deletion marker at record ${record + 1}.`);
+    }
   }
 }
 

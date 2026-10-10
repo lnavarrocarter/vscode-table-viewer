@@ -18,6 +18,7 @@ body {
 /* ── Toolbar ──────────────────────────────────────────────── */
 #toolbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 6px 10px;
@@ -48,7 +49,7 @@ body {
   white-space: nowrap;
 }
 
-#save-btn {
+#save-btn, #spreadsheet-btn, #connect-agent-btn {
   padding: 4px 12px;
   border: 1px solid var(--vscode-button-border, transparent);
   border-radius: 3px;
@@ -58,7 +59,7 @@ body {
   font-size: inherit;
 }
 
-#save-btn:hover {
+#save-btn:hover, #spreadsheet-btn:hover, #connect-agent-btn:hover {
   background: var(--vscode-button-hoverBackground, #1177bb);
 }
 
@@ -67,6 +68,41 @@ body {
 }
 
 /* ── Table container ──────────────────────────────────────── */
+#analysis-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border-bottom: 1px solid var(--vscode-panel-border, #3c3c3c);
+}
+#analysis-toolbar label { display: flex; align-items: center; gap: 6px; min-width: 0; }
+#analysis-toolbar select, #analysis-toolbar input {
+  max-width: 180px;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--vscode-input-border, #3c3c3c);
+  border-radius: 3px;
+  color: var(--vscode-input-foreground, #d4d4d4);
+  background: var(--vscode-input-background, #3c3c3c);
+  font: inherit;
+}
+#clear-filters {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 3px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+#clear-filters:hover { background: var(--vscode-list-hoverBackground, #2a2d2e); }
+#clear-filters svg { width: 18px; height: 18px; }
+#aggregate-result { overflow-wrap: anywhere; min-width: 0; max-width: 100%; }
+#analysis-toolbar :focus-visible { outline: 2px solid var(--vscode-focusBorder, #007acc); }
+
 #table-container {
   flex: 1;
   overflow: auto;

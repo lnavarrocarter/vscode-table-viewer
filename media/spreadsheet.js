@@ -1,13 +1,16 @@
 import { createUniver, LocaleType, mergeLocales, CommandType } from '@univerjs/presets';
 import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core';
 import enUS from '@univerjs/preset-sheets-core/locales/en-US';
-import { createElement, Save, Download, TableProperties, RefreshCw, Copy, ClipboardPaste } from 'lucide';
+import { createElement, Save, Download, TableProperties, RefreshCw, Copy, ClipboardPaste, Plug } from 'lucide';
 import { buildPivot, pivotHeaders, usedRange } from '../src/pivot';
 import { encodeClipboard, clipboardCells } from '../src/clipboard';
 import '@univerjs/preset-sheets-core/lib/index.css';
 import './spreadsheet.css';
+import { setupCharts } from './charts';
 
 const vscode = acquireVsCodeApi();
+document.getElementById('connect-agent').appendChild(createElement(Plug, { width: 16, height: 16 }));
+document.getElementById('connect-agent').addEventListener('click', () => vscode.postMessage({ type: 'connectAgent' }));
 const status = document.getElementById('status');
 let instance;
 let workbook;
@@ -23,6 +26,7 @@ const pivotDialog = document.getElementById('pivot-dialog');
 const pivotSource = document.getElementById('pivot-source');
 const pivotRange = document.getElementById('pivot-range');
 const pivotError = document.getElementById('pivot-error');
+const renderCharts = setupCharts(() => workbook, queueEdit, text => { status.textContent = text; }, (dataUrl, title) => vscode.postMessage({ type: 'exportChart', dataUrl, title }));
 
 function updatePivotControls() {
   document.getElementById('refresh-pivot').disabled = !workbook?.getActiveSheet()?.getSheet().getCustomMetadata()?.tableViewerPivot;
@@ -144,8 +148,10 @@ window.addEventListener('message', event => {
       workbook.onCommandExecuted(command => {
         if (command.type === CommandType.MUTATION) queueEdit();
         updatePivotControls();
+        renderCharts();
       });
       updatePivotControls();
+      renderCharts();
       document.getElementById('document-name').textContent = message.data.name;
       status.textContent = 'Experimental';
       vscode.postMessage({ type: 'loaded' });

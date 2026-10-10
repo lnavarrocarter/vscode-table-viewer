@@ -1,4 +1,6 @@
 // @ts-check
+import { matchesFilter, aggregateValues } from '../src/tableAnalysis';
+import { createIcons, FilterX } from 'lucide';
 (function () {
   console.log('Table.js loading...');
   const vscode = acquireVsCodeApi();
@@ -15,6 +17,13 @@
   const filterInput = document.getElementById('filter-input');
   const rowCountEl = document.getElementById('row-count');
   const saveBtn = document.getElementById('save-btn');
+  const columnFilter = document.getElementById('column-filter');
+  const filterOperator = document.getElementById('filter-operator');
+  const columnValue = document.getElementById('column-value');
+  const aggregateColumn = document.getElementById('aggregate-column');
+  const aggregateOperation = document.getElementById('aggregate-operation');
+  const aggregateResult = document.getElementById('aggregate-result');
+  createIcons({ icons: { FilterX } });
 
   // ── VS Code messaging ──────────────────────────────────────
   window.addEventListener('message', (event) => {
@@ -29,10 +38,23 @@
       sortDir = 'asc';
       filterText = '';
       filterInput.value = '';
+      columnFilter.replaceChildren(new Option('All columns', ''));
+      aggregateColumn.replaceChildren();
+      tableData.headers.forEach((header, index) => {
+        columnFilter.add(new Option(header, String(index)));
+        aggregateColumn.add(new Option(header, String(index)));
+      });
+      columnValue.value = '';
+      filterOperator.value = 'contains';
+      updateFilterControls();
+      document.getElementById('spreadsheet-btn').textContent = tableData.readOnly ? 'Create editable copy' : 'Open as Spreadsheet';
+      document.querySelector('#editor-footer span').textContent = tableData.readOnly ? 'Read-only DBF' : 'Table Viewer';
       applyFilterAndSort();
       renderTable();
     } else if (msg.type === 'saved') {
       flashSaved();
+    } else if (msg.type === 'agentConnected') {
+      document.getElementById('connect-agent-btn').textContent = 'Shared with Agent';
     }
   });
 
@@ -51,6 +73,40 @@
     vscode.postMessage({ type: 'save' });
   });
 
+  document.getElementById('spreadsheet-btn').addEventListener('click', () => {
+    vscode.postMessage({ type: 'importSpreadsheet' });
+  });
+  document.getElementById('connect-agent-btn')?.addEventListener('click', () => {
+    vscode.postMessage({ type: 'connectAgent' });
+  });
+  function updateFilterControls() {
+    filterOperator.disabled = columnFilter.value === '';
+    columnValue.disabled = columnFilter.value === '' || ['empty', 'notEmpty'].includes(filterOperator.value);
+  }
+  for (const control of [columnFilter, filterOperator, columnValue]) {
+    control.addEventListener('input', () => {
+      updateFilterControls();
+      applyFilterAndSort();
+      renderTable();
+    });
+  }
+  for (const control of [aggregateColumn, aggregateOperation]) control.addEventListener('change', updateAggregation);
+  document.getElementById('clear-filters').addEventListener('click', () => {
+    filterInput.value = filterText = columnFilter.value = columnValue.value = '';
+    filterOperator.value = 'contains';
+    updateFilterControls();
+    applyFilterAndSort();
+    renderTable();
+  });
+  function updateAggregation() {
+    if (!tableData || aggregateColumn.value === '') { aggregateResult.textContent = ''; return; }
+    const result = aggregateValues(filteredRows.map(({ row }) => row[Number(aggregateColumn.value)] ?? ''), aggregateOperation.value);
+    aggregateResult.textContent = `${aggregateOperation.value}: ${result.value || 'N/A'}`;
+    if (aggregateOperation.value !== 'COUNT') {
+      aggregateResult.textContent += ` (${result.numericCount} numeric, ${result.ignoredCount} ignored)`;
+    }
+  }
+
   // ── Filter & sort logic ────────────────────────────────────
   function applyFilterAndSort() {
     if (!tableData) return;
@@ -61,14 +117,17 @@
         row.some(cell => cell.toLowerCase().includes(filterText))
       );
     }
+    if (columnFilter.value !== '') {
+      rows = rows.filter(({ row }) => matchesFilter(row[Number(columnFilter.value)] ?? '', filterOperator.value, columnValue.value));
+    }
 
     if (sortCol >= 0) {
       rows.sort((a, b) => {
         const av = a.row[sortCol] ?? '';
         const bv = b.row[sortCol] ?? '';
-        const numA = parseFloat(av);
-        const numB = parseFloat(bv);
-        const isNum = !isNaN(numA) && !isNaN(numB);
+        const numA = Number(av);
+        const numB = Number(bv);
+        const isNum = av.trim() !== '' && bv.trim() !== '' && Number.isFinite(numA) && Number.isFinite(numB);
         const cmp = isNum ? numA - numB : av.localeCompare(bv);
         return sortDir === 'asc' ? cmp : -cmp;
       });
@@ -76,6 +135,7 @@
 
     filteredRows = rows;
     updateRowCount();
+    updateAggregation();
   }
 
   function updateRowCount() {
@@ -97,7 +157,7 @@
       empty.className = 'empty-state';
       empty.setAttribute('role', 'status');
       const heading = document.createElement('h2');
-      heading.textContent = filterText ? 'No matching rows' : 'No data rows yet';
+      heading.textContent = filterText || columnFilter.value !== '' ? 'No matching rows' : 'No data rows yet';
       const hint = document.createElement('p');
       hint.textContent = filterText
         ? 'Try a different search or clear the filter to see all rows.'
@@ -154,6 +214,8 @@
 
       row.forEach((cellVal, colIdx) => {
         const td = tr.insertCell();
+        td.dataset.row = String(origIndex);
+        td.dataset.column = String(colIdx);
         td.textContent = cellVal;
         td.title = cellVal;
         td.addEventListener('dblclick', () => startEdit(td, origIndex, colIdx));
@@ -193,6 +255,8 @@
         if (fr) fr.row[colIdx] = newValue;
 
         vscode.postMessage({ type: 'edit', row: rowIdx, col: colIdx, value: newValue, oldValue });
+        applyFilterAndSort();
+        if (filterText || columnFilter.value !== '' || sortCol >= 0) renderTable();
       }
     }
 
@@ -212,10 +276,8 @@
         input.removeEventListener('blur', commit);
         commit();
         // Move to next cell
-        const row = td.parentElement;
-        const cells = Array.from(row.cells);
-        const nextCell = cells[cells.indexOf(td) + 1];
-        if (nextCell && nextCell !== cells[0]) {
+        const nextCell = container.querySelector(`td[data-row="${rowIdx}"][data-column="${colIdx + 1}"]`);
+        if (nextCell) {
           nextCell.dispatchEvent(new MouseEvent('dblclick'));
         }
       }

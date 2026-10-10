@@ -4,7 +4,7 @@
 
 ## Local setup
 
-Use Node.js 20 or later, npm, and VS Code 1.85 or later. Package verification also requires `unzip` (available on macOS and the Ubuntu CI runner). CI uses Node.js 22.
+Use Node.js 20 or later, npm, and VS Code 1.105 or later. Package verification also requires `unzip` (available on macOS and the Ubuntu CI runner). CI uses Node.js 22.
 
 ```bash
 git clone https://github.com/lnavarrocarter/vscode-table-viewer.git
@@ -28,6 +28,12 @@ Open the repository in VS Code and press **F5**. The checked-in `.vscode/launch.
 | `src/parsers/spreadsheetParser.ts` | Typed multi-sheet Univer snapshots and value-only exports |
 | `src/pivot.ts` | Validated pivot grouping and aggregate totals using lodash |
 | `src/clipboard.ts` | Quoted TSV copy/paste with literal text and bounded ranges |
+| `src/tableAnalysis.ts` | Column predicates and decimal summaries of visible rows |
+| `src/mcp.ts` | Session-scoped HTTP MCP, authorization, previews and confirmed writes |
+| `src/tableJoin.ts` | Bounded LEFT/INNER exact typed-key joins |
+| `src/finance.ts` | Decimal budget/reconciliation with rounding and duplicate review |
+| `src/chartOptions.ts`, `media/charts.js` | Chart.js options, movable overlays and PNG export |
+| `tests/mcp.test.cjs` | Real HTTP SDK client with simulated VS Code host |
 | `media/spreadsheet.js` | Local Univer OSS spreadsheet and document synchronization |
 | `scripts/build-webview.cjs` | Bundles frontend resources and third-party license notices |
 | `tests/spreadsheet.test.cjs` | Adapter/protocol tests and browser preview harness |
@@ -46,16 +52,17 @@ npm run watch         # Recompile on changes
 npm test              # Build, package, and test table-viewer.vsix
 npm run test:package  # Test an existing table-viewer.vsix
 npm run test:spreadsheet # Build and test spreadsheet adapters and host protocol
+npm run test:mcp       # Build and test authorization and analysis over HTTP
 npm run test:extension-host # Real VS Code with a temporary profile
 npm run watch:webview # Rebuild Univer resources on frontend changes
-npm run preview:spreadsheet # Browser harness after compilation, localhost:39431
+npm run preview:spreadsheet # Preview: localhost:39431; Table Viewer: /table
 ```
 
 `npm test` runs spreadsheet adapter/protocol tests and extracts the VSIX into a temporary directory outside the checkout. It checks assets and license notices, activates both editors against a mocked VS Code API, verifies CSV, TSV, TXT, XLSX, XLS, and ODS round trips, and checks read-only DBF and native spreadsheet adapters using only packaged dependencies. It also checks semicolon delimiter preservation.
 
 `npm run compile` builds TypeScript and the Univer webview. The existing `watch` task watches only TypeScript; run `watch:webview` separately for frontend changes. Univer and esbuild are development dependencies: their frontend code is bundled into `media/generated/`, not loaded from Node modules or a CDN at runtime. Keep the generated resources in the VSIX even though Git ignores them. The build collects license texts from packages included in the bundle. Keep all Univer packages pinned to matching versions.
 
-The preview uses the production HTML and CSP with a simulated VS Code host, a synthetic two-sheet workbook and an in-memory clipboard. It does not access the system clipboard. Browser checks cover nonblank rendering, calculation, formatting, undo/redo, pivot creation/refresh/reload, value copy/paste, themes and a narrow viewport. Native documents use VS Code's text lifecycle; edits are versioned snapshots and exports are values-only. Pivot definitions are stored in result-sheet custom metadata, tied to the pinned Univer release. Clipboard values travel through the host's `vscode.env.clipboard` API, preserving explicit user-triggered access.
+The preview uses the production HTML and CSP with a simulated VS Code host, the fictional `examples/ventas-demo.xlsx` workbook, and an in-memory clipboard. Open `http://127.0.0.1:39431/` for Spreadsheet or `/table` for the classic Table Viewer. It does not access the system clipboard. Browser checks cover nonblank rendering, calculation, formatting, undo/redo, pivot creation/refresh/reload, value copy/paste, themes and a narrow viewport. Native documents use VS Code's text lifecycle; edits are versioned snapshots and exports are values-only. Pivot definitions are stored in result-sheet custom metadata, tied to the pinned Univer release. Clipboard values travel through the host's `vscode.env.clipboard` API, preserving explicit user-triggered access.
 
 `test:extension-host` launches the installed VS Code with a temporary profile and extension directory, tests activation, opening, save and system clipboard API, and restores the original clipboard without logging its contents. On macOS it detects standard installations; elsewhere set `VSCODE_TEST_EXECUTABLE` to the application executable. It is separate from `npm test` because it requires a GUI installation. It does not automate Excel/Sheets. DBF unit tests use independent binary fixtures for dBASE III and Visual FoxPro, with CP1252, dates, decimals, booleans and deletion flags; real anonymized DBF variants and external application interchange remain manual checks. Memo imports and DBF writes must fail explicitly.
 
@@ -75,7 +82,7 @@ The automated check does not run the webview or a real Extension Host. Before re
 
 ```bash
 npm run package
-code --install-extension csv-xls-table-viewer-0.4.1.vsix
+code --install-extension csv-xls-table-viewer-0.6.0.vsix
 ```
 
 The package filename uses the version in `package.json`; adjust the install command after changing it.
@@ -83,5 +90,17 @@ The package filename uses the version in `package.json`; adjust the install comm
 For a release, update `package.json` and `package-lock.json` together with `npm version`. The release workflow runs on `v*.*.*` tags, requires the tag to match the manifest version, executes `npm test`, then publishes the validated VSIX to the Marketplace and GitHub Releases. Marketplace publishing requires the repository secret `VSCE_PAT`. Pushing a matching tag triggers publication.
 
 ## Documentation contributions
+
+To reproduce the three current captures, first compile and start `npm run preview:spreadsheet`. With Playwright and its matching Chromium installed in an external tools directory, run:
+
+```bash
+PLAYWRIGHT_MODULE_PATH=/absolute/path/to/node_modules/playwright node scripts/capture-screenshots.cjs
+```
+
+If Playwright is already resolvable by Node, omit the environment variable. The script checks the filter total, creates the chart through the real UI, moves it, checks nonblank canvas pixels, saves desktop/mobile PNGs and closes its browser. It only changes screenshot files; the fictional chart data is in memory. Independent Chromium avoids cropped surfaces from hidden integrated-browser pages. Playwright is optional for documentation work, not a runtime dependency.
+
+Current screenshots: `media/table-filters.png`, `media/table-filters-mobile.png` and `media/spreadsheet-charts.png`. Capture the production HTML via the local preview, using fictional data. The filter capture selects REGION containing Norte and SUM of CANTIDAD; formatted amounts with thousands separators are ignored by strict numeric summaries. The chart capture uses a fictional regional summary with Units/Target and the combined chart type. State that previews simulate the host; do not present them as actual Copilot or Extension Host sessions. Keep both README languages aligned and check image/link paths before packaging.
+
+`npm test` also runs the MCP tests. The MCP server is started explicitly, exposes only authorized documents and accepts writes only through confirmed previews. Test startup with no documents, direct-file sharing/cancellation, folder review, stale source detection and undoable unsaved edits. The table bundle now ships as `media/generated/table.js`; its source imports decimal.js and lucide and must not be served directly as a classic script. `watch:webview` watches both bundles; compile builds both webviews. DBF import calls shared `validateDbf` once before typed decoding; tests cover malformed descriptors and records as well as empty tables. Verify real-file variants manually before making broader compatibility claims.
 
 English is the primary language. Keep `README.md` and `README.es.md` aligned, and update both versions of this guide when development steps change. Product claims should describe behavior implemented in the current code. Use synthetic or anonymized data in examples and screenshots.
